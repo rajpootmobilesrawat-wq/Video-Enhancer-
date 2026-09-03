@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Video Enhancer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#101214;
+    --panel:#1a1d21;
+    --panel-2:#212429;
+    --line:#2b2f34;
+    --text:#ecedee;
+    --muted:#9aa0a6;
+    --amber:#d4b33d;
+    --amber-dim:#8a742c;
+    --rec:#e5484d;
+    --ok:#5ec98f;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);}
+  body{
+    font-family:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+    padding-bottom:60px;
+  }
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  header{
+    display:flex;align-items:center;gap:10px;
+    padding:20px 20px 14px;
+    border-bottom:1px solid var(--line);
+  }
+  .rec-dot{
+    width:9px;height:9px;border-radius:50%;
+    background:var(--rec);
+    box-shadow:0 0 8px var(--rec);
+    flex-shrink:0;
+  }
+  header h1{
+    font-size:17px;font-weight:600;margin:0;letter-spacing:0.2px;
+  }
+  header p{margin:2px 0 0;font-size:12.5px;color:var(--muted);}
+  main{max-width:480px;margin:0 auto;padding:18px 16px 0;}
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px;
+    margin-bottom:14px;
+  }
+  .drop{
+    border:1.5px dashed var(--line);
+    border-radius:8px;
+    padding:26px 14px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .drop:active, .drop.drag{
+    border-color:var(--amber);
+    background:rgba(212,179,61,0.05);
+  }
+  .drop svg{width:30px;height:30px;stroke:var(--muted);margin-bottom:8px;}
+  .drop .main-txt{font-size:14px;font-weight:500;}
+  .drop .sub-txt{font-size:12px;color:var(--muted);margin-top:3px;}
+  input[type=file]{display:none;}
+  .file-info{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-top:12px;padding:10px 12px;
+    background:var(--panel-2);border-radius:7px;
+    font-size:12.5px;
+  }
+  .file-info .name{color:var(--text);max-width:65%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .file-info .meta{color:var(--muted);}
+  .section-label{
+    font-size:11.5px;color:var(--muted);margin-bottom:9px;
+  }
+  .chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{
+    padding:9px 13px;
+    border-radius:20px;
+    border:1px solid var(--line);
+    background:var(--panel-2);
+    color:var(--muted);
+    font-size:13px;
+    cursor:pointer;
+    user-select:none;
+    transition:all .12s ease;
+  }
+  .chip.on{
+    border-color:var(--amber);
+    color:var(--amber);
+    background:rgba(212,179,61,0.09);
+  }
+  .hint{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.55;}
+  .speed-row{display:flex;gap:8px;margin-top:4px;}
+  .speed-opt{
+    flex:1;text-align:center;
+    padding:10px 6px;border-radius:7px;
+    border:1px solid var(--line);
+    background:var(--panel-2);
+    font-size:12.5px;color:var(--muted);
+    cursor:pointer;
+  }
+  .speed-opt.on{border-color:var(--amber);color:var(--amber);background:rgba(212,179,61,0.09);}
+  button.primary{
+    width:100%;
+    padding:15px;
+    border-radius:8px;
+    border:none;
+    background:var(--amber);
+    color:#1a1607;
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+    letter-spacing:0.2px;
+  }
+  button.primary:disabled{background:var(--amber-dim);color:#3a3220;cursor:not-allowed;}
+  button.primary:active:not(:disabled){transform:scale(0.995);}
+  .progress-wrap{margin-top:14px;display:none;}
+  .progress-wrap.show{display:block;}
+  .progress-track{
+    height:6px;border-radius:3px;background:var(--panel-2);
+    overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;width:0%;background:var(--amber);
+    transition:width .2s ease;
+  }
+  .progress-row{
+    display:flex;justify-content:space-between;
+    font-size:11.5px;color:var(--muted);margin-top:7px;
+  }
+  .result video{width:100%;border-radius:7px;display:block;background:#000;}
+  .result{display:none;}
+  .result.show{display:block;}
+  a.download{
+    display:block;text-align:center;
+    margin-top:12px;padding:13px;
+    border-radius:8px;
+    border:1px solid var(--ok);
+    color:var(--ok);
+    text-decoration:none;
+    font-size:14px;font-weight:600;
+  }
+  .status-line{
+    font-size:12px;color:var(--muted);margin-top:8px;min-height:16px;
+  }
+  .error-box{
+    display:none;
+    margin-top:12px;padding:10px 12px;
+    border:1px solid var(--rec);
+    border-radius:7px;
+    color:#f2a5a7;
+    font-size:12.5px;
+  }
+  .error-box.show{display:block;}
+  footer{
+    text-align:center;font-size:11px;color:var(--muted);
+    padding:20px 16px 8px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="rec-dot"></div>
+  <div>
+    <h1>Video Enhancer</h1>
+    <p>Sharpen · Denoise · Color · Stabilize — sab kuch phone ke andar hi, free</p>
+  </div>
+</header>
+
+<main>
+
+  <div class="card">
+    <div class="drop" id="dropZone">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="main-txt">Video select karein</div>
+      <div class="sub-txt">Tap karein ya file yahan drop karein</div>
+    </div>
+    <input type="file" id="fileInput" accept="video/*">
+    <div class="file-info" id="fileInfo" style="display:none;">
+      <span class="name" id="fileName"></span>
+      <span class="meta mono" id="fileMeta"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">ENHANCEMENT</div>
+    <div class="chips">
+      <div class="chip on" data-preset="denoise">Denoise</div>
+      <div class="chip on" data-preset="sharpen">Sharpen</div>
+      <div class="chip" data-preset="color">Color boost</div>
+      <div class="chip" data-preset="stabilize">Stabilize</div>
+    </div>
+    <div class="hint">Denoise + Sharpen se video saaf aur crisp lagti hai. Stabilize hilti hui (shaky) footage ke liye hai — lambi video par time zyada lagega.</div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">SPEED VS QUALITY</div>
+    <div class="speed-row">
+      <div class="speed-opt" data-speed="fast">Fast</div>
+      <div class="speed-opt on" data-speed="balanced">Balanced</div>
+      <div class="speed-opt" data-speed="best">Best</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">RESOLUTION</div>
+    <div class="chips" id="resChips">
+      <div class="chip on" data-res="original">Original</div>
+      <div class="chip" data-res="2160">4K (2160p)</div>
+      <div class="chip" data-res="1080">1080p</div>
+      <div class="chip" data-res="720">720p</div>
+    </div>
+    <div class="hint">Neechay resolution le jane se file chhoti aur processing tez hogi. Chhoti video ko 4K le jane se size bara hoga lekin naya detail nahi aayega — sirf stretch hoga.</div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">FRAME RATE</div>
+    <div class="chips" id="fpsChips">
+      <div class="chip on" data-fps="original">Original</div>
+      <div class="chip" data-fps="30">30 fps</div>
+      <div class="chip" data-fps="60">60 fps</div>
+      <div class="chip" data-fps="120">120 fps</div>
+    </div>
+    <div class="hint">Ye frame duplicate/drop kar ke fps badalta hai — asal motion-smoothing (jese Topaz karta hai) nahi hai.</div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">BITRATE</div>
+    <div class="chips" id="bitrateChips">
+      <div class="chip on" data-bitrate="auto">Auto (quality-based)</div>
+      <div class="chip" data-bitrate="manual">Manual</div>
+    </div>
+    <div id="manualBitrateRow" style="display:none;margin-top:12px;">
+      <input type="range" id="bitrateSlider" min="2" max="80" value="16" style="width:100%;">
+      <div class="progress-row"><span>Target bitrate</span><span class="mono" id="bitrateVal">16 Mbps</span></div>
+    </div>
+  </div>
+
+  <button class="primary" id="processBtn" disabled>Pehle video select karein</button>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-row">
+      <span id="progressPct" class="mono">0%</span>
+      <span id="progressStage" class="mono">idle</span>
+    </div>
+    <div class="status-line" id="statusLine"></div>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <div class="card result" id="resultCard">
+    <div class="section-label">RESULT</div>
+    <video id="resultVideo" controls playsinline></video>
+    <a class="download" id="downloadLink" download="enhanced.mp4">Video download karein</a>
+  </div>
+
+  <footer>Poora processing is phone ke browser mein hoti hai — koi upload, koi server nahi.</footer>
+</main>
+
+<script type="module">
+import { FFmpeg } from 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
+import { fetchFile, toBlobURL } from 'https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js';
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const fileInfo = document.getElementById('fileInfo');
+const fileName = document.getElementById('fileName');
+const fileMeta = document.getElementById('fileMeta');
+const processBtn = document.getElementById('processBtn');
+const progressWrap = document.getElementById('progressWrap');
+const progressFill = document.getElementById('progressFill');
+const progressPct = document.getElementById('progressPct');
+const progressStage = document.getElementById('progressStage');
+const statusLine = document.getElementById('statusLine');
+const errorBox = document.getElementById('errorBox');
+const resultCard = document.getElementById('resultCard');
+const resultVideo = document.getElementById('resultVideo');
+const downloadLink = document.getElementById('downloadLink');
+
+let selectedFile = null;
+let presets = new Set(['denoise', 'sharpen']);
+let speed = 'balanced';
+let resolution = 'original';
+let fpsChoice = 'original';
+let bitrateMode = 'auto';
+let manualBitrate = 16;
+let ffmpeg = null;
+let ffmpegReady = false;
+
+dropZone.addEventListener('click', () => fileInput.click());
+['dragover','dragenter'].forEach(evt => dropZone.addEventListener(evt, e => { e.preventDefault(); dropZone.classList.add('drag'); }));
+['dragleave','drop'].forEach(evt => dropZone.addEventListener(evt, e => { e.preventDefault(); dropZone.classList.remove('drag'); }));
+dropZone.addEventListener('drop', e => {
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+fileInput.addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) handleFile(f);
+});
+
+function formatSize(bytes){
+  if (bytes > 1e9) return (bytes/1e9).toFixed(2) + ' GB';
+  if (bytes > 1e6) return (bytes/1e6).toFixed(1) + ' MB';
+  return (bytes/1e3).toFixed(0) + ' KB';
+}
+
+function handleFile(f){
+  selectedFile = f;
+  fileName.textContent = f.name;
+  fileMeta.textContent = formatSize(f.size);
+  fileInfo.style.display = 'flex';
+  processBtn.disabled = false;
+  processBtn.textContent = 'Enhance video';
+  errorBox.classList.remove('show');
+  resultCard.classList.remove('show');
+  if (f.size > 250 * 1e6){
+    statusLine.textContent = 'Bari file hai — phone ke browser mein processing dheere aur memory-heavy ho sakti hai. Chhoti clip se test karein.';
+  } else {
+    statusLine.textContent = '';
+  }
+}
+
+document.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const p = chip.dataset.preset;
+    if (presets.has(p)) { presets.delete(p); chip.classList.remove('on'); }
+    else { presets.add(p); chip.classList.add('on'); }
+  });
+});
+
+document.querySelectorAll('.speed-opt').forEach(opt => {
+  opt.addEventListener('click', () => {
+    document.querySelectorAll('.speed-opt').forEach(o => o.classList.remove('on'));
+    opt.classList.add('on');
+    speed = opt.dataset.speed;
+  });
+});
+
+document.querySelectorAll('#resChips .chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('#resChips .chip').forEach(c => c.classList.remove('on'));
+    chip.classList.add('on');
+    resolution = chip.dataset.res;
+  });
+});
+
+document.querySelectorAll('#fpsChips .chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('#fpsChips .chip').forEach(c => c.classList.remove('on'));
+    chip.classList.add('on');
+    fpsChoice = chip.dataset.fps;
+  });
+});
+
+document.querySelectorAll('#bitrateChips .chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('#bitrateChips .chip').forEach(c => c.classList.remove('on'));
+    chip.classList.add('on');
+    bitrateMode = chip.dataset.bitrate;
+    document.getElementById('manualBitrateRow').style.display = bitrateMode === 'manual' ? 'block' : 'none';
+  });
+});
+
+const bitrateSlider = document.getElementById('bitrateSlider');
+const bitrateVal = document.getElementById('bitrateVal');
+bitrateSlider.addEventListener('input', () => {
+  manualBitrate = bitrateSlider.value;
+  bitrateVal.textContent = manualBitrate + ' Mbps';
+});
+
+function buildFilterChain(){
+  const filters = [];
+  if (presets.has('denoise')) filters.push('hqdn3d=2:1:2:1');
+  if (presets.has('sharpen')) filters.push('unsharp=5:5:0.8:5:5:0.4');
+  if (presets.has('color'))   filters.push('eq=contrast=1.08:saturation=1.15:brightness=0.01');
+  if (presets.has('stabilize')) filters.push('deshake=rx=16:ry=16');
+  if (resolution !== 'original') filters.push(`scale=-2:${resolution}`);
+  if (fpsChoice !== 'original') filters.push(`fps=${fpsChoice}`);
+  return filters.length ? filters.join(',') : null;
+}
+
+function speedParams(){
+  if (speed === 'fast') return { preset: 'veryfast', crf: '24' };
+  if (speed === 'best') return { preset: 'slow', crf: '18' };
+  return { preset: 'fast', crf: '21' };
+}
+
+async function ensureFFmpeg(){
+  if (ffmpegReady) return;
+  statusLine.textContent = 'Engine load ho raha hai (pehli baar thora time lagega)...';
+  ffmpeg = new FFmpeg();
+  ffmpeg.on('progress', ({ progress }) => {
+    const pct = Math.min(100, Math.max(0, Math.round(progress * 100)));
+    progressFill.style.width = pct + '%';
+    progressPct.textContent = pct + '%';
+  });
+  const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+  await ffmpeg.load({
+    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+  });
+  ffmpegReady = true;
+}
+
+processBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+  errorBox.classList.remove('show');
+  resultCard.classList.remove('show');
+  processBtn.disabled = true;
+  processBtn.textContent = 'Processing...';
+  progressWrap.classList.add('show');
+  progressFill.style.width = '0%';
+  progressPct.textContent = '0%';
+  progressStage.textContent = 'preparing';
+
+  try {
+    await ensureFFmpeg();
+    progressStage.textContent = 'processing';
+    statusLine.textContent = 'Video process ho rahi hai — is phone ki speed par depend karta hai, sabar karein.';
+
+    const extMatch = selectedFile.name.match(/\.[^.]+$/);
+    const ext = extMatch ? extMatch[0] : '.mp4';
+    const inputName = 'input' + ext;
+    const outputName = 'output.mp4';
+
+    await ffmpeg.writeFile(inputName, await fetchFile(selectedFile));
+
+    const filterChain = buildFilterChain();
+    const { preset, crf } = speedParams();
+    const args = ['-i', inputName];
+    if (filterChain) args.push('-vf', filterChain);
+    args.push('-c:v', 'libx264', '-preset', preset);
+    if (bitrateMode === 'manual'){
+      const kbps = Math.round(manualBitrate * 1000);
+      args.push('-b:v', kbps + 'k', '-maxrate', kbps + 'k', '-bufsize', (kbps * 2) + 'k');
+    } else {
+      args.push('-crf', crf);
+    }
+    args.push('-c:a', 'aac', '-b:a', '128k', outputName);
+
+    await ffmpeg.exec(args);
+
+    const data = await ffmpeg.readFile(outputName);
+    const blob = new Blob([data.buffer], { type: 'video/mp4' });
+    const url = URL.createObjectURL(blob);
+
+    resultVideo.src = url;
+    downloadLink.href = url;
+    resultCard.classList.add('show');
+    progressStage.textContent = 'done';
+    statusLine.textContent = 'Mukammal — neeche preview aur download.';
+    resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  } catch (err) {
+    console.error(err);
+    errorBox.textContent = 'Kuch ghalat ho gaya: ' + (err && err.message ? err.message : 'processing fail hui. Chhoti video ke saath try karein.');
+    errorBox.classList.add('show');
+    progressStage.textContent = 'error';
+  } finally {
+    processBtn.disabled = false;
+    processBtn.textContent = 'Enhance video';
+  }
+});
+</script>
+</body>
+</html>
