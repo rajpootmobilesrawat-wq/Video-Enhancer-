@@ -267,8 +267,8 @@
 </main>
 
 <script type="module">
-import { FFmpeg } from 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
-import { fetchFile, toBlobURL } from 'https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js';
+import { FFmpeg } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
+import { fetchFile, toBlobURL } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js';
 
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
@@ -395,21 +395,50 @@ function speedParams(){
   return { preset: 'fast', crf: '21' };
 }
 
+async function fetchWithProgress(url, mimeType, label){
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`${label} download fail hui: HTTP ${resp.status}`);
+  const total = Number(resp.headers.get('content-length')) || 0;
+  const reader = resp.body.getReader();
+  let received = 0;
+  const chunks = [];
+  while (true){
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    received += value.length;
+    if (total){
+      const pct = Math.round((received / total) * 100);
+      statusLine.textContent = `${label}: ${pct}% (${(received/1e6).toFixed(1)}MB / ${(total/1e6).toFixed(1)}MB)`;
+    } else {
+      statusLine.textContent = `${label}: ${(received/1e6).toFixed(1)}MB`;
+    }
+  }
+  const blob = new Blob(chunks, { type: mimeType });
+  return URL.createObjectURL(blob);
+}
+
 async function ensureFFmpeg(){
   if (ffmpegReady) return;
-  statusLine.textContent = 'Engine load ho raha hai (pehli baar thora time lagega)...';
   ffmpeg = new FFmpeg();
   ffmpeg.on('progress', ({ progress }) => {
     const pct = Math.min(100, Math.max(0, Math.round(progress * 100)));
     progressFill.style.width = pct + '%';
     progressPct.textContent = pct + '%';
   });
-  const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-  await ffmpeg.load({
-    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-    classWorkerURL: await toBlobURL('https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/worker.js', 'text/javascript'),
-  });
+
+  const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd';
+  const coreURL = await fetchWithProgress(`${baseURL}/ffmpeg-core.js`, 'text/javascript', 'Core script');
+  const wasmURL = await fetchWithProgress(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm', 'Engine (wasm)');
+  const classWorkerURL = await fetchWithProgress('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/worker.js', 'text/javascript', 'Worker script');
+
+  statusLine.textContent = 'Sab files aa gayin — worker start ho raha hai...';
+  const loadPromise = ffmpeg.load({ coreURL, wasmURL, classWorkerURL });
+  const timeoutPromise = new Promise((_, reject) => setTimeout(
+    () => reject(new Error('Worker 60 second mein start nahi hua. Ye phone/browser ki limitation ho sakti hai — Chrome update karein ya dusra browser try karein.')),
+    60000
+  ));
+  await Promise.race([loadPromise, timeoutPromise]);
   ffmpegReady = true;
 }
 
